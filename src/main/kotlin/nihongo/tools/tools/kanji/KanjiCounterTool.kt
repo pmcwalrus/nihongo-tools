@@ -1,0 +1,148 @@
+package nihongo.tools.tools.kanji
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import nihongo.tools.model.AppTool
+import nihongo.tools.ui.FilePickerRow
+import nihongo.tools.ui.ProgressSection
+import nihongo.tools.ui.ScrollableContent
+import nihongo.tools.ui.ToolScaffold
+import nihongo.tools.util.FileDialogs
+import java.io.File
+
+class KanjiCounterTool(
+    private val service: KanjiCounterService = KanjiCounterService()
+) : AppTool {
+    override val id: String = "kanji-counter"
+    override val title: String = "Счетчик кандзи в файле"
+    override val description: String = "Подсчитывает все кандзи в документе, поддерживает файл-исключение и сохраняет результат в CSV."
+
+    @Composable
+    override fun Content(onBack: () -> Unit) {
+        val scope = rememberCoroutineScope()
+        var sourceFile by remember { mutableStateOf<File?>(null) }
+        var exclusionFile by remember { mutableStateOf<File?>(null) }
+        var resultFolderName by remember { mutableStateOf("") }
+        var progress by remember { mutableFloatStateOf(0f) }
+        var status by remember { mutableStateOf("Выберите файл. Папка назначения будет запрошена при запуске.") }
+        var resultSummary by remember { mutableStateOf<String?>(null) }
+        var isRunning by remember { mutableStateOf(false) }
+
+        ToolScaffold(
+            title = title,
+            description = description,
+            onBack = onBack
+        ) {
+            ScrollableContent {
+                FilePickerRow(
+                    label = "Исходный файл",
+                    file = sourceFile,
+                    buttonText = "Выбрать файл",
+                    onPick = { sourceFile = FileDialogs.chooseFile("Выберите документ для подсчета кандзи") }
+                )
+
+                FilePickerRow(
+                    label = "Файл с исключениями",
+                    file = exclusionFile,
+                    buttonText = "Выбрать файл исключений",
+                    onPick = { exclusionFile = FileDialogs.chooseFile("Выберите файл с исключениями") },
+                    onClear = { exclusionFile = null }
+                )
+
+                OutlinedTextField(
+                    value = resultFolderName,
+                    onValueChange = { resultFolderName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Имя подпапки для результата") },
+                    supportingText = {
+                        Text("Если оставить пустым, CSV сохранится прямо в выбранную при запуске папку.")
+                    }
+                )
+
+                Button(
+                    onClick = {
+                        val currentSource = sourceFile
+                        if (currentSource == null) {
+                            status = "Нужно выбрать исходный файл."
+                            return@Button
+                        }
+
+                        val baseOutput = FileDialogs.chooseDirectory("Выберите папку для сохранения CSV") ?: run {
+                            status = "Сохранение отменено: папка не выбрана."
+                            return@Button
+                        }
+
+                        val targetDirectory = resultFolderName.trim().takeIf { it.isNotEmpty() }?.let {
+                            File(baseOutput, it)
+                        } ?: baseOutput
+
+                        isRunning = true
+                        progress = 0f
+                        resultSummary = null
+                        scope.launch {
+                            runCatching {
+                                withContext(Dispatchers.IO) {
+                                    targetDirectory.mkdirs()
+                                    service.countKanji(
+                                        sourceFile = currentSource,
+                                        exclusionFile = exclusionFile,
+                                        outputDirectory = targetDirectory
+                                    ) { currentProgress, currentStatus ->
+                                        progress = currentProgress
+                                        status = currentStatus
+                                    }
+                                }
+                            }.onSuccess { result ->
+                                resultSummary =
+                                    "Сохранено: ${result.outputFile.absolutePath}\nУникальных кандзи: ${result.uniqueKanji}\nВсего вхождений: ${result.totalKanji}"
+                            }.onFailure { error ->
+                                status = error.message ?: "Произошла ошибка во время подсчета."
+                            }
+                            isRunning = false
+                        }
+                    },
+                    enabled = !isRunning
+                ) {
+                    Text(if (isRunning) "Обработка..." else "Запустить подсчет")
+                }
+
+                ProgressSection(progress = progress, status = status)
+
+                if (resultSummary != null) {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                        Text(
+                            text = resultSummary!!,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    }
+}
