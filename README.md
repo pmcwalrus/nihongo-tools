@@ -1,5 +1,7 @@
 # Nihongo Tools
 
+![Nihongo Tools logo](logo.png)
+
 Desktop-приложение на Kotlin для небольших утилит по изучению японского языка.
 
 Сейчас в приложении доступны:
@@ -12,8 +14,9 @@ Desktop-приложение на Kotlin для небольших утилит 
 Готовые сборки публикуются в `GitHub Releases`.
 
 - Последняя версия: `Releases -> Latest`
-- macOS: `DMG`
-- Windows: `MSI` и `EXE`
+- macOS Apple Silicon: `DMG`
+- macOS Intel: `DMG`
+- Windows x64: `MSI` и `EXE`
 
 После публикации репозитория добавь сюда прямую ссылку:
 
@@ -39,26 +42,6 @@ Desktop-приложение на Kotlin для небольших утилит 
 - сохраняет файлы с японскими именами
 - поддерживает выбор подпапки для результата
 - показывает прогресс скачивания
-
-## Скриншоты
-
-Сюда стоит добавить 2-4 изображения интерфейса, например:
-
-- главный экран со списком утилит
-- экран подсчета кандзи
-- экран скачивания аудио
-
-Рекомендуемый путь для файлов:
-
-- `docs/images/main-window.png`
-- `docs/images/kanji-counter.png`
-- `docs/images/marugoto-audio.png`
-
-Пример вставки:
-
-```md
-![Главный экран](docs/images/main-window.png)
-```
 
 ## Как пользоваться
 
@@ -102,53 +85,3 @@ gradlew.bat run
 ```bash
 ./gradlew test
 ```
-
-## Сборка
-
-### macOS
-
-```bash
-./gradlew packageDmg
-```
-
-### Windows
-
-```bat
-gradlew.bat packageMsi
-gradlew.bat packageExe
-```
-
-Готовые пакеты появляются в `build/compose/binaries`.
-
-Важно:
-
-- `DMG` нужно собирать на macOS
-- `MSI` и `EXE` нужно собирать на Windows
-- конечные пакеты рассчитаны на запуск пользователем без отдельной установки Java
-
-## Автоматические релизы через GitHub
-
-В проект добавлен workflow для сборки релизов на GitHub Actions:
-
-- `DMG` собирается на `macos-latest`
-- `MSI` и `EXE` собираются на `windows-latest`
-- артефакты прикладываются к GitHub Release
-
-Workflow лежит в:
-
-- [.github/workflows/release.yml](/Users/varenikab/nihongo_tools/.github/workflows/release.yml)
-
-Чтобы выпустить новую версию:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-После этого GitHub Actions соберет релиз автоматически.
-
-## Документация
-
-- [architecture.md](/Users/varenikab/nihongo_tools/architecture.md) — описание архитектуры проекта
-- [docs/GITHUB_SETUP.md](/Users/varenikab/nihongo_tools/docs/GITHUB_SETUP.md) — как оформить репозиторий и публикацию
-- [docs/RELEASE_TEMPLATE.md](/Users/varenikab/nihongo_tools/docs/RELEASE_TEMPLATE.md) — шаблон описания релиза

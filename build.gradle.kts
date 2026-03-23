@@ -1,4 +1,26 @@
+import net.sf.image4j.codec.ico.ICOEncoder
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import java.io.File
+import javax.imageio.ImageIO
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.jclarion:image4j:0.7")
+    }
+}
+
+val appVersion = providers.gradleProperty("appVersion")
+    .orElse(providers.environmentVariable("APP_VERSION"))
+    .orElse("1.0.0")
+    .get()
+
+val logoFile = layout.projectDirectory.file("logo.png").asFile
+val generatedIconsDir = layout.buildDirectory.dir("generated/icons")
+val macIconRegularFile = layout.buildDirectory.file("generated/icons/logo.icns")
+val windowsIconRegularFile = layout.buildDirectory.file("generated/icons/logo.ico")
 
 plugins {
     kotlin("jvm") version "2.1.10"
@@ -27,6 +49,75 @@ kotlin {
     jvmToolchain(21)
 }
 
+val generateWindowsIcon = tasks.register("generateWindowsIcon") {
+    inputs.file(logoFile)
+    outputs.file(windowsIconRegularFile)
+
+    doLast {
+        val outputFile = windowsIconRegularFile.get().asFile
+        outputFile.parentFile.mkdirs()
+        val image = ImageIO.read(logoFile)
+        outputFile.outputStream().use { outputStream ->
+            ICOEncoder.write(image, outputStream)
+        }
+    }
+}
+
+val generateMacIcon = tasks.register("generateMacIcon") {
+    inputs.file(logoFile)
+    outputs.file(macIconRegularFile)
+    onlyIf { System.getProperty("os.name").contains("Mac", ignoreCase = true) }
+
+    doLast {
+        val iconRoot = generatedIconsDir.get().asFile
+        val iconsetDir = File(iconRoot, "logo.iconset")
+        val outputFile = macIconRegularFile.get().asFile
+
+        iconsetDir.deleteRecursively()
+        iconsetDir.mkdirs()
+        outputFile.parentFile.mkdirs()
+
+        val sizes = listOf(16, 32, 128, 256, 512)
+        sizes.forEach { size ->
+            exec {
+                commandLine(
+                    "sips",
+                    "-z", size.toString(), size.toString(),
+                    logoFile.absolutePath,
+                    "--out",
+                    File(iconsetDir, "icon_${size}x$size.png").absolutePath
+                )
+            }
+            exec {
+                commandLine(
+                    "sips",
+                    "-z", (size * 2).toString(), (size * 2).toString(),
+                    logoFile.absolutePath,
+                    "--out",
+                    File(iconsetDir, "icon_${size}x${size}@2x.png").absolutePath
+                )
+            }
+        }
+
+        exec {
+            commandLine(
+                "iconutil",
+                "-c", "icns",
+                iconsetDir.absolutePath,
+                "-o", outputFile.absolutePath
+            )
+        }
+    }
+}
+
+tasks.matching { it.name in setOf("packageDmg", "createDistributable") }.configureEach {
+    dependsOn(generateMacIcon)
+}
+
+tasks.matching { it.name in setOf("packageMsi", "packageExe") }.configureEach {
+    dependsOn(generateWindowsIcon)
+}
+
 compose.desktop {
     application {
         mainClass = "nihongo.tools.MainKt"
@@ -34,7 +125,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe)
             packageName = "Nihongo Tools"
-            packageVersion = "1.0.0"
+            packageVersion = appVersion
             description = "Desktop utilities for studying Japanese"
             vendor = "Nihongo Tools"
             modules(
@@ -56,12 +147,14 @@ compose.desktop {
             )
 
             windows {
+                iconFile.set(windowsIconRegularFile)
                 menu = true
                 shortcut = true
                 dirChooser = true
             }
 
             macOS {
+                iconFile.set(macIconRegularFile)
                 dockName = "Nihongo Tools"
             }
         }
