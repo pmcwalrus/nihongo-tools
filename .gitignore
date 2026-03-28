@@ -3,5 +3,6 @@
 /.bootstrap/
 /.kotlin/
 /.idea/
+/.vscode/
 .DS_Store
 

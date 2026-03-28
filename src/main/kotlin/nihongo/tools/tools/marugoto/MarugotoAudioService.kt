@@ -23,15 +23,19 @@ data class MarugotoDownloadResult(
 class MarugotoAudioService(
     private val httpClient: HttpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
 ) {
-    private val entryRegex = Regex(
-        pattern = "(?s)<div class=\"_jpn\">\\s*(.*?)\\s*</div>.*?<span class=\"_btn-sound js-audioPlayer\"[^>]*data-audio=\"([^\"]+\\.mp3)\""
-    )
     private val baseUri = URI("https://www.marugoto-online.jp/")
 
     fun parseEntries(rawText: String): List<MarugotoAudioEntry> {
-        return entryRegex.findAll(rawText).mapNotNull { match ->
-            val rawLabel = Jsoup.parse(match.groupValues[1]).text().trim()
-            val audioPath = match.groupValues[2].trim()
+        val document = Jsoup.parse(rawText)
+        return document.select("span._btn-sound.js-audioPlayer[data-audio$=.mp3]").mapNotNull { audioElement ->
+            val audioPath = audioElement.attr("data-audio").trim()
+            val labelElement = audioElement.closest("div._jpn")
+                ?: audioElement.previousElementSiblings().firstOrNull { it.`is`("div._jpn") }
+                ?: return@mapNotNull null
+            val rawLabel = labelElement.clone().apply {
+                select("span._btn-sound.js-audioPlayer, img").remove()
+            }.text().trim()
+
             if (rawLabel.isBlank() || audioPath.isBlank()) {
                 null
             } else {
@@ -40,7 +44,7 @@ class MarugotoAudioService(
                     audioUrl = baseUri.resolve(audioPath.removePrefix("/")).toString()
                 )
             }
-        }.toList()
+        }
     }
 
     suspend fun downloadEntries(
