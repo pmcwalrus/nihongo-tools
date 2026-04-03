@@ -23,6 +23,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -35,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -67,6 +69,9 @@ class KanjiMapAudioTool(
         val itemStatuses = remember { mutableStateMapOf<String, String>() }
 
         val selectedEntries = entries.filter { selectedUrls[it.audioUrl] == true }
+        val selectedCount = selectedEntries.size
+        val allSelected = entries.isNotEmpty() && selectedCount == entries.size
+        val hasSelection = selectedCount > 0
 
         ToolScaffold(
             title = title,
@@ -134,26 +139,6 @@ class KanjiMapAudioTool(
                     ) {
                         Text(if (isLoading) "Загрузка..." else "Получить слова")
                     }
-
-                    Button(
-                        onClick = {
-                            entries.forEach { selectedUrls[it.audioUrl] = true }
-                            status = "Выделены все слова."
-                        },
-                        enabled = entries.isNotEmpty() && !isLoading && !isDownloading
-                    ) {
-                        Text("Отметить все")
-                    }
-
-                    Button(
-                        onClick = {
-                            entries.forEach { selectedUrls[it.audioUrl] = false }
-                            status = "Выделение снято."
-                        },
-                        enabled = entries.isNotEmpty() && !isLoading && !isDownloading
-                    ) {
-                        Text("Снять все")
-                    }
                 }
 
                 Button(
@@ -216,6 +201,19 @@ class KanjiMapAudioTool(
                         selectedUrls = selectedUrls,
                         itemStatuses = itemStatuses,
                         enabled = !isLoading && !isDownloading,
+                        selectAllState = when {
+                            allSelected -> ToggleableState.On
+                            hasSelection -> ToggleableState.Indeterminate
+                            else -> ToggleableState.Off
+                        },
+                        onToggleAll = { shouldSelectAll ->
+                            entries.forEach { selectedUrls[it.audioUrl] = shouldSelectAll }
+                            status = if (shouldSelectAll) {
+                                "Выделены все слова."
+                            } else {
+                                "Выделение снято."
+                            }
+                        },
                         onToggle = { audioUrl, isChecked ->
                             selectedUrls[audioUrl] = isChecked
                         }
@@ -234,6 +232,8 @@ private fun KanjiMapAudioTable(
     selectedUrls: Map<String, Boolean>,
     itemStatuses: Map<String, String>,
     enabled: Boolean,
+    selectAllState: ToggleableState,
+    onToggleAll: (Boolean) -> Unit,
     onToggle: (String, Boolean) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -253,7 +253,14 @@ private fun KanjiMapAudioTable(
                 .padding(end = 14.dp)
         ) {
             item {
-                KanjiMapAudioTableHeader()
+                KanjiMapAudioTableHeader(
+                    selectAllState = selectAllState,
+                    enabled = enabled,
+                    onToggleAll = {
+                        val shouldSelectAll = selectAllState != ToggleableState.On
+                        onToggleAll(shouldSelectAll)
+                    }
+                )
             }
             items(entries, key = { it.audioUrl }) { entry ->
                 KanjiMapAudioRow(
@@ -277,7 +284,11 @@ private fun KanjiMapAudioTable(
 }
 
 @Composable
-private fun KanjiMapAudioTableHeader() {
+private fun KanjiMapAudioTableHeader(
+    selectAllState: ToggleableState,
+    enabled: Boolean,
+    onToggleAll: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -286,7 +297,11 @@ private fun KanjiMapAudioTableHeader() {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.Center) {
-            Text("Выб.")
+            TriStateCheckbox(
+                state = selectAllState,
+                onClick = onToggleAll,
+                enabled = enabled
+            )
         }
         Text("Слово", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold)
         Text("Перевод", modifier = Modifier.weight(1.3f), fontWeight = FontWeight.Bold)
