@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import nihongo.tools.model.AppTool
 import nihongo.tools.ui.FilePickerRow
 import nihongo.tools.ui.ProgressSection
+import nihongo.tools.ui.RememberingDirectoryPickerRow
 import nihongo.tools.ui.ScrollableContent
 import nihongo.tools.ui.ToolScaffold
 import nihongo.tools.util.FileDialogs
@@ -43,9 +44,10 @@ class KanjiCounterTool(
         val scope = rememberCoroutineScope()
         var sourceFile by remember { mutableStateOf<File?>(null) }
         var exclusionFile by remember { mutableStateOf<File?>(null) }
+        var outputDirectory by remember { mutableStateOf<File?>(null) }
         var resultFolderName by remember { mutableStateOf("") }
         var progress by remember { mutableFloatStateOf(0f) }
-        var status by remember { mutableStateOf("Выберите файл. Папка назначения будет запрошена при запуске.") }
+        var status by remember { mutableStateOf("Выберите файл и папку для сохранения CSV.") }
         var resultSummary by remember { mutableStateOf<String?>(null) }
         var isRunning by remember { mutableStateOf(false) }
 
@@ -70,6 +72,15 @@ class KanjiCounterTool(
                     onClear = { exclusionFile = null }
                 )
 
+                RememberingDirectoryPickerRow(
+                    label = "Папка для CSV",
+                    directory = outputDirectory,
+                    buttonText = "Выбрать папку",
+                    dialogTitle = "Выберите папку для сохранения CSV",
+                    onDirectoryPicked = { outputDirectory = it },
+                    onClear = { outputDirectory = null }
+                )
+
                 OutlinedTextField(
                     value = resultFolderName,
                     onValueChange = { resultFolderName = it },
@@ -88,8 +99,8 @@ class KanjiCounterTool(
                             return@Button
                         }
 
-                        val baseOutput = FileDialogs.chooseDirectory("Выберите папку для сохранения CSV") ?: run {
-                            status = "Сохранение отменено: папка не выбрана."
+                        val baseOutput = outputDirectory ?: run {
+                            status = "Нужно выбрать папку для сохранения CSV."
                             return@Button
                         }
 

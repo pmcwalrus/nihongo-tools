@@ -25,9 +25,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nihongo.tools.model.AppTool
 import nihongo.tools.ui.ProgressSection
+import nihongo.tools.ui.RememberingDirectoryPickerRow
 import nihongo.tools.ui.ScrollableContent
 import nihongo.tools.ui.ToolScaffold
-import nihongo.tools.util.FileDialogs
 import java.io.File
 
 class MarugotoAudioTool(
@@ -41,9 +41,10 @@ class MarugotoAudioTool(
     override fun Content(onBack: () -> Unit) {
         val scope = rememberCoroutineScope()
         var rawText by remember { mutableStateOf("") }
+        var outputDirectory by remember { mutableStateOf<File?>(null) }
         var resultFolderName by remember { mutableStateOf("") }
         var progress by remember { mutableFloatStateOf(0f) }
-        var status by remember { mutableStateOf("Вставьте фрагменты текста из Marugoto. Папка назначения будет запрошена при запуске.") }
+        var status by remember { mutableStateOf("Вставьте фрагменты текста из Marugoto и выберите папку назначения.") }
         var resultSummary by remember { mutableStateOf<String?>(null) }
         var isRunning by remember { mutableStateOf(false) }
 
@@ -58,6 +59,15 @@ class MarugotoAudioTool(
                     onValueChange = { rawText = it },
                     modifier = Modifier.fillMaxWidth().height(240.dp),
                     label = { Text("HTML-текст или фрагмент страницы") }
+                )
+
+                RememberingDirectoryPickerRow(
+                    label = "Папка для MP3",
+                    directory = outputDirectory,
+                    buttonText = "Выбрать папку",
+                    dialogTitle = "Выберите папку для аудиофайлов",
+                    onDirectoryPicked = { outputDirectory = it },
+                    onClear = { outputDirectory = null }
                 )
 
                 OutlinedTextField(
@@ -77,8 +87,8 @@ class MarugotoAudioTool(
                             return@Button
                         }
 
-                        val baseOutput = FileDialogs.chooseDirectory("Выберите папку для аудиофайлов") ?: run {
-                            status = "Скачивание отменено: папка не выбрана."
+                        val baseOutput = outputDirectory ?: run {
+                            status = "Нужно выбрать папку для аудиофайлов."
                             return@Button
                         }
 

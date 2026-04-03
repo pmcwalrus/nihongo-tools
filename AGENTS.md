@@ -8,6 +8,7 @@ The project currently contains:
 
 1. A kanji counter for documents with CSV export.
 2. An audio downloader for Marugoto dictionary fragments.
+3. A The Kanji Map audio downloader for kanji example words.
 
 The application is designed so new utilities can be added as independent screens without rewriting the app shell.
 
@@ -58,6 +59,7 @@ Startup begins in [Main.kt](/Users/varenikab/nihongo_tools/src/main/kotlin/nihon
 
 - `main()` starts a Compose desktop application.
 - A single top-level window is created.
+- the initial window height is set to about `720dp`
 - `NihongoToolsApp()` renders the app UI.
 
 ### App shell and navigation
@@ -112,6 +114,7 @@ Current registry:
 
 - `KanjiCounterTool`
 - `MarugotoAudioTool`
+- `KanjiMapAudioTool`
 
 To add a new tool, the minimal integration path is:
 
@@ -144,6 +147,7 @@ Important pieces:
 
 Shared reusable UI building blocks:
 
+- `RememberingDirectoryPickerRow(...)`: generic directory chooser row backed by the OS-native folder dialog and recent-directory memory
 - `FilePickerRow(...)`: generic file chooser row
 - `ProgressSection(...)`: linear progress bar with status text
 - `ScrollableContent(...)`: vertically scrollable container with visible scrollbar
@@ -163,10 +167,16 @@ Responsibilities:
 
 - open file chooser
 - open directory chooser
-- fall back between Swing and AWT dialog behavior
+- open the OS-native folder picker with an initial directory
 - keep file/directory selection logic out of business services
 
 This is a UI-adjacent helper and should stay free of domain logic.
+
+### `RecentDirectoriesStore.kt`
+
+Responsibility:
+
+- persist the latest selected directories for reuse in later folder-picking actions
 
 ### `CsvWriter.kt`
 
@@ -215,7 +225,7 @@ Relevant files:
 - input file selection
 - optional exclusion file selection
 - optional result subfolder name input
-- triggering destination folder selection when the run button is pressed
+- destination folder selection before the run button is pressed
 - progress display
 - success/error summary display
 
@@ -223,6 +233,7 @@ State currently stored in Compose local state:
 
 - `sourceFile`
 - `exclusionFile`
+- `outputDirectory`
 - `resultFolderName`
 - `progress`
 - `status`
@@ -274,13 +285,14 @@ Relevant files:
 
 - pasted source text input
 - optional result subfolder name input
-- destination folder selection at action time
+- destination folder selection before the download starts
 - progress display
 - success/error summary display
 
 State currently stored in Compose local state:
 
 - `rawText`
+- `outputDirectory`
 - `resultFolderName`
 - `progress`
 - `status`
@@ -374,6 +386,61 @@ When changing behavior:
 
 - add or update service-level tests first
 - avoid making parsing/counting changes without tests
+
+## Tool 3: The Kanji Map Audio Thief
+
+Relevant files:
+
+- [KanjiMapAudioTool.kt](/Users/varenikab/nihongo_tools/src/main/kotlin/nihongo/tools/tools/kanjimap/KanjiMapAudioTool.kt)
+- [KanjiMapAudioService.kt](/Users/varenikab/nihongo_tools/src/main/kotlin/nihongo/tools/tools/kanjimap/KanjiMapAudioService.kt)
+- [KanjiMapAudioServiceTest.kt](/Users/varenikab/nihongo_tools/src/test/kotlin/nihongo/tools/tools/kanjimap/KanjiMapAudioServiceTest.kt)
+
+### UI responsibilities
+
+`KanjiMapAudioTool` owns:
+
+- destination directory selection
+- kanji input
+- triggering page fetch from The Kanji Map
+- rendering the discovered words as a table
+- checkbox selection, select-all, and clear-all actions
+- batch download of the selected rows
+- per-item local item status text
+- progress and screen-level status display
+
+State currently stored in Compose local state:
+
+- `outputDirectory`
+- `kanji`
+- `progress`
+- `status`
+- `isLoading`
+- `isDownloading`
+- `entries`
+- `itemStatuses`
+- `selectedUrls`
+
+### Service responsibilities
+
+`KanjiMapAudioService` owns:
+
+- requesting `https://thekanjimap.com/<kanji>`
+- locating the current page payload inside the returned HTML
+- extracting example words, translations, and direct `mp3` URLs
+- normalizing the saved filename by removing the reading in parentheses
+- downloading the selected audio file
+- generating unique output file names
+
+### Parsing model
+
+Current strategy:
+
+- the service downloads the HTML for the kanji page
+- it reads the embedded Next.js payload already present in the page source
+- it extracts `kanjialiveData.examples` for the requested kanji
+- it reads `japanese`, `meaning.english`, and `audio.mp3` from each example
+
+At the moment, Playwright interception is not required because the page already exposes direct audio URLs in the server response. If The Kanji Map changes and stops embedding those URLs, this tool is the place to introduce a browser-based fallback.
 
 ## Build and Packaging
 

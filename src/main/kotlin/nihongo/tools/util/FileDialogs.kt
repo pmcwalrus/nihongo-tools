@@ -23,25 +23,20 @@ object FileDialogs {
         }
     }
 
-    fun chooseDirectory(title: String): File? {
-        return runCatching {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
-            JFileChooser().apply {
-                dialogTitle = title
-                fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-            }.let { chooser ->
-                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
+    fun chooseDirectory(title: String, initialDirectory: File? = null): File? {
+        UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
+        return JFileChooser().apply {
+            dialogTitle = title
+            fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+            isAcceptAllFileFilterUsed = false
+            approveButtonText = "Выбрать"
+            approveButtonToolTipText = "Выбрать текущую папку"
+            initialDirectory?.takeIf { it.exists() && it.isDirectory }?.let {
+                currentDirectory = it
+                selectedFile = it
             }
-        }.getOrElse {
-            System.setProperty("apple.awt.fileDialogForDirectories", "true")
-            try {
-                val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD)
-                dialog.isVisible = true
-                dialog.files.firstOrNull()
-            } finally {
-                System.setProperty("apple.awt.fileDialogForDirectories", "false")
-            }
+        }.let { chooser ->
+            if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
         }
     }
 }
-
