@@ -4,10 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,16 +14,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nihongo.tools.model.AppTool
+import nihongo.tools.ui.NeonButton
 import nihongo.tools.ui.ProgressSection
 import nihongo.tools.ui.RememberingDirectoryPickerRow
 import nihongo.tools.ui.ScrollableContent
+import nihongo.tools.ui.StatusCard
 import nihongo.tools.ui.ToolScaffold
+import nihongo.tools.ui.WebpunkTextFieldFrame
 import java.io.File
 
 class MarugotoAudioTool(
@@ -54,12 +52,19 @@ class MarugotoAudioTool(
             onBack = onBack
         ) {
             ScrollableContent {
-                OutlinedTextField(
-                    value = rawText,
-                    onValueChange = { rawText = it },
-                    modifier = Modifier.fillMaxWidth().height(240.dp),
-                    label = { Text("HTML-текст или фрагмент страницы") }
-                )
+                WebpunkTextFieldFrame {
+                    Text(
+                        "SOURCE FRAGMENT",
+                        style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.tertiary
+                    )
+                    OutlinedTextField(
+                        value = rawText,
+                        onValueChange = { rawText = it },
+                        modifier = Modifier.fillMaxWidth().height(240.dp),
+                        label = { Text("HTML-текст или фрагмент страницы") }
+                    )
+                }
 
                 RememberingDirectoryPickerRow(
                     label = "Папка для MP3",
@@ -70,26 +75,35 @@ class MarugotoAudioTool(
                     onClear = { outputDirectory = null }
                 )
 
-                OutlinedTextField(
-                    value = resultFolderName,
-                    onValueChange = { resultFolderName = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Имя подпапки для MP3") },
-                    supportingText = {
-                        Text("Если оставить пустым, файлы сохранятся прямо в выбранную при запуске папку.")
-                    }
-                )
+                WebpunkTextFieldFrame {
+                    Text(
+                        "DOWNLOAD TARGET",
+                        style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.tertiary
+                    )
+                    OutlinedTextField(
+                        value = resultFolderName,
+                        onValueChange = { resultFolderName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Имя подпапки для MP3") },
+                        supportingText = {
+                            Text("Если оставить пустым, файлы сохранятся прямо в выбранную при запуске папку.")
+                        }
+                    )
+                }
 
-                Button(
+                NeonButton(
+                    text = if (isRunning) "Скачивание..." else "Скачать MP3",
+                    enabled = !isRunning,
                     onClick = {
                         if (rawText.isBlank()) {
                             status = "Нужно вставить текст."
-                            return@Button
+                            return@NeonButton
                         }
 
                         val baseOutput = outputDirectory ?: run {
                             status = "Нужно выбрать папку для аудиофайлов."
-                            return@Button
+                            return@NeonButton
                         }
 
                         val targetDirectory = resultFolderName.trim().takeIf { it.isNotEmpty() }?.let {
@@ -123,24 +137,13 @@ class MarugotoAudioTool(
                             }
                             isRunning = false
                         }
-                    },
-                    enabled = !isRunning
-                ) {
-                    Text(if (isRunning) "Скачивание..." else "Скачать MP3")
-                }
+                    }
+                )
 
                 ProgressSection(progress = progress, status = status)
 
                 if (resultSummary != null) {
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                        Text(
-                            text = resultSummary!!,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
+                    StatusCard(resultSummary!!)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

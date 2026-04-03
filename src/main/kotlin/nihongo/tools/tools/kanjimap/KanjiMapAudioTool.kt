@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.VerticalScrollbar
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -42,10 +41,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nihongo.tools.model.AppTool
+import nihongo.tools.ui.NeonButton
 import nihongo.tools.ui.ProgressSection
 import nihongo.tools.ui.RememberingDirectoryPickerRow
 import nihongo.tools.ui.ScrollableContent
 import nihongo.tools.ui.ToolScaffold
+import nihongo.tools.ui.WebpunkTextFieldFrame
 import java.io.File
 
 class KanjiMapAudioTool(
@@ -88,24 +89,29 @@ class KanjiMapAudioTool(
                     onClear = { outputDirectory = null }
                 )
 
-                OutlinedTextField(
-                    value = kanji,
-                    onValueChange = { kanji = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Кандзи") },
-                    supportingText = { Text("Например: 食") }
-                )
+                WebpunkTextFieldFrame {
+                    Text("KANJI SIGNAL", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
+                    OutlinedTextField(
+                        value = kanji,
+                        onValueChange = { kanji = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Кандзи") },
+                        supportingText = { Text("Например: 食") }
+                    )
+                }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(
+                    NeonButton(
+                        text = if (isLoading) "Загрузка..." else "Получить слова",
+                        enabled = !isLoading && !isDownloading,
                         onClick = {
                             if (outputDirectory == null) {
                                 status = "Сначала выберите папку для сохранения."
-                                return@Button
+                                return@NeonButton
                             }
                             if (kanji.trim().isEmpty()) {
                                 status = "Введите кандзи."
-                                return@Button
+                                return@NeonButton
                             }
 
                             isLoading = true
@@ -134,23 +140,22 @@ class KanjiMapAudioTool(
                                 }
                                 isLoading = false
                             }
-                        },
-                        enabled = !isLoading && !isDownloading
-                    ) {
-                        Text(if (isLoading) "Загрузка..." else "Получить слова")
-                    }
+                        }
+                    )
                 }
 
-                Button(
+                NeonButton(
+                    text = if (isDownloading) "Скачивание..." else "Скачать отмеченные (${selectedEntries.size})",
+                    enabled = selectedEntries.isNotEmpty() && !isLoading && !isDownloading,
                     onClick = {
                         val targetDirectory = outputDirectory
                         if (targetDirectory == null) {
                             status = "Сначала выберите папку для сохранения."
-                            return@Button
+                            return@NeonButton
                         }
                         if (selectedEntries.isEmpty()) {
                             status = "Отметьте хотя бы одно слово."
-                            return@Button
+                            return@NeonButton
                         }
 
                         isDownloading = true
@@ -178,14 +183,8 @@ class KanjiMapAudioTool(
                             status = "Скачано файлов: $savedCount из ${selectedEntries.size}. Папка: ${targetDirectory.absolutePath}"
                             isDownloading = false
                         }
-                    },
-                    enabled = selectedEntries.isNotEmpty() && !isLoading && !isDownloading
-                ) {
-                    Text(
-                        if (isDownloading) "Скачивание..."
-                        else "Скачать отмеченные (${selectedEntries.size})"
-                    )
-                }
+                    }
+                )
 
                 ProgressSection(progress = progress, status = status)
 
@@ -242,9 +241,10 @@ private fun KanjiMapAudioTable(
             .fillMaxWidth()
             .heightIn(min = 220.dp, max = 420.dp)
             .border(
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.7f)),
                 shape = MaterialTheme.shapes.medium
             )
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         LazyColumn(
             state = listState,
@@ -292,7 +292,7 @@ private fun KanjiMapAudioTableHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f))
+            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -322,8 +322,9 @@ private fun KanjiMapAudioRow(
         modifier = Modifier
             .fillMaxWidth()
             .border(
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
             )
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (checked) 0.95f else 0.55f))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

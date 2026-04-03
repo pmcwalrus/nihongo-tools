@@ -4,11 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,10 +20,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nihongo.tools.model.AppTool
 import nihongo.tools.ui.FilePickerRow
+import nihongo.tools.ui.NeonButton
 import nihongo.tools.ui.ProgressSection
 import nihongo.tools.ui.RememberingDirectoryPickerRow
 import nihongo.tools.ui.ScrollableContent
+import nihongo.tools.ui.StatusCard
 import nihongo.tools.ui.ToolScaffold
+import nihongo.tools.ui.WebpunkTextFieldFrame
 import nihongo.tools.util.FileDialogs
 import java.io.File
 
@@ -81,27 +79,36 @@ class KanjiCounterTool(
                     onClear = { outputDirectory = null }
                 )
 
-                OutlinedTextField(
-                    value = resultFolderName,
-                    onValueChange = { resultFolderName = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Имя подпапки для результата") },
-                    supportingText = {
-                        Text("Если оставить пустым, CSV сохранится прямо в выбранную при запуске папку.")
-                    }
-                )
+                WebpunkTextFieldFrame {
+                    Text(
+                        "OUTPUT PATCH",
+                        style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.tertiary
+                    )
+                    OutlinedTextField(
+                        value = resultFolderName,
+                        onValueChange = { resultFolderName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Имя подпапки для результата") },
+                        supportingText = {
+                            Text("Если оставить пустым, CSV сохранится прямо в выбранную при запуске папку.")
+                        }
+                    )
+                }
 
-                Button(
+                NeonButton(
+                    text = if (isRunning) "Обработка..." else "Запустить подсчет",
+                    enabled = !isRunning,
                     onClick = {
                         val currentSource = sourceFile
                         if (currentSource == null) {
                             status = "Нужно выбрать исходный файл."
-                            return@Button
+                            return@NeonButton
                         }
 
                         val baseOutput = outputDirectory ?: run {
                             status = "Нужно выбрать папку для сохранения CSV."
-                            return@Button
+                            return@NeonButton
                         }
 
                         val targetDirectory = resultFolderName.trim().takeIf { it.isNotEmpty() }?.let {
@@ -132,24 +139,13 @@ class KanjiCounterTool(
                             }
                             isRunning = false
                         }
-                    },
-                    enabled = !isRunning
-                ) {
-                    Text(if (isRunning) "Обработка..." else "Запустить подсчет")
-                }
+                    }
+                )
 
                 ProgressSection(progress = progress, status = status)
 
                 if (resultSummary != null) {
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                        Text(
-                            text = resultSummary!!,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
+                    StatusCard(resultSummary!!)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
